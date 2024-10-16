@@ -78,6 +78,7 @@ function sqlQuery(ctx, sqlCommand, callbackFunction, opt_noModifyRes, opt_noLog,
     var error = null;
     try {
       result = yield pool.query(sqlCommand, opt_values);
+
     } catch (err) {
       error = err;
       if (!opt_noLog) {

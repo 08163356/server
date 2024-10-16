@@ -740,6 +740,7 @@ function* processChangesBase64(ctx, tempDirs, task, cmd, authorProps) {
     if (0 === changes.length && extChanges) {
       changes = extChanges;
     }
+
     extChanges = undefined;
     for (let i = 0; i < changes.length; ++i) {
       let change = changes[i];

@@ -71,6 +71,7 @@ EditorData.prototype._getDocumentData = function(ctx, docId) {
   if (!options) {
     tenantData[docId] = options = {};
   }
+  ctx.logger.warn('axing _getDocumentData options = ', options, "\ndocId = ", docId, '\nthis.data = ', this.data, this.data.localhost[docId]?.forceSave, this.data.localhost[docId]?.messages);
   return options;
 };
 EditorData.prototype._checkAndLock = function(ctx, name, docId, fencingToken, ttl) {
@@ -204,10 +205,12 @@ EditorData.prototype.getdelSaved = async function(ctx, docId) {
 };
 EditorData.prototype.setForceSave = async function(ctx, docId, time, index, baseUrl, changeInfo, convertInfo) {
   let data = this._getDocumentData(ctx, docId);
+  ctx.logger.warn('axing setForceSave data.forceSave = ',  {time, index, baseUrl, changeInfo, started: false, ended: false, convertInfo});
   data.forceSave = {time, index, baseUrl, changeInfo, started: false, ended: false, convertInfo};
 };
 EditorData.prototype.getForceSave = async function(ctx, docId) {
   let data = this._getDocumentData(ctx, docId);
+  ctx.logger.warn('axing getForceSave',  data)
   return data.forceSave || null;
 };
 EditorData.prototype.checkAndStartForceSave = async function(ctx, docId) {

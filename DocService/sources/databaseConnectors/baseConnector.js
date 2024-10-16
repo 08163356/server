@@ -114,6 +114,7 @@ function insertChangesPromiseFast(ctx, objChanges, docId, index, user) {
 }
 
 function insertChangesPromise(ctx, objChanges, docId, index, user) {
+  ctx.logger.debug("axing insertChangesPromise objChanges", ctx, "\n objChanges = ",  objChanges, docId, index, user);
   if (isSupportFastInsert) {
     return insertChangesPromiseFast(ctx, objChanges, docId, index, user);
   } else {

@@ -11,3 +11,6 @@ node_modules
 local-development-*.json
 *.pyc
 run-develop-local.py
+DocService/docservice
+FileConverter/converter
+

@@ -1659,6 +1659,7 @@ exports.install = function(server, callbackFunction) {
                 yield getLock(ctx, conn, data, false);
                 break;
               case 'saveChanges'      :
+console.log('axing test saveChanges', ctx, conn, data)
                 yield* saveChanges(ctx, conn, data);
                 break;
               case 'isSaveLock'      :
@@ -3150,6 +3151,7 @@ exports.install = function(server, callbackFunction) {
       for (let i = 0; i < newChanges.length; ++i) {
         oElement = newChanges[i];
         let change = tenEditor['binaryChanges'] ? oElement : JSON.stringify(oElement);
+        ctx.logger.info("axing saveChanges", change);
         arrNewDocumentChanges.push({docid: docId, change: change, time: newChangesLastDate,
           user: userId, useridoriginal: conn.user.idOriginal});
       }
@@ -3421,6 +3423,7 @@ exports.install = function(server, callbackFunction) {
 	}
 
   function* _checkLicenseAuth(ctx, licenseInfo, userId, isLiveViewer, logPrefix) {
+    //cfgWarningLimitPercents这地方设置的是70
     const tenWarningLimitPercents = ctx.getCfg('license.warning_limit_percents', cfgWarningLimitPercents) / 100;
 
     let licenseWarningLimitUsers = false;
@@ -3446,11 +3449,14 @@ exports.install = function(server, callbackFunction) {
           licenseWarningLimitUsers = licenseInfo.usersCount * tenWarningLimitPercents <= arrUsers.length;
         }
       } else if(isLiveViewer) {
+        // 这赋值的是LICENSE_CONNECTIONS，也就是最大连接数
         const connectionsLiveCount = licenseInfo.connectionsView;
+        // 获取的是当前链接数目
         const liveViewerConnectionsCount = yield editorStat.getLiveViewerConnectionsCount(ctx, connections);
         if (liveViewerConnectionsCount >= connectionsLiveCount) {
           licenseType = c_LR.ConnectionsLive;
         }
+        // licenseWarningLimitConnectionsLive = 最大连接数 * 警告阈值 <= 当前链接数目。也就是判断是否到警告线
         licenseWarningLimitConnectionsLive = connectionsLiveCount * tenWarningLimitPercents <= liveViewerConnectionsCount;
       } else {
         const connectionsCount = licenseInfo.connections;
@@ -3477,10 +3483,14 @@ exports.install = function(server, callbackFunction) {
         licenseType = c_LR.ConnectionsOS;
       }
       ctx.logger.error(logPrefix + 'Connection limit exceeded!!!');
-    } else if (c_LR.ConnectionsLive === licenseType) {
+      // ConnectionsLive = 13，是个常量；licenseType只有当liveViewerConnectionsCount >= connectionsLiveCount时候才会为13
+      // 也就是当前连接数目已经超出限制的连接数的时候
+    } else if (c_LR.ConnectionsLive === licenseType) { //
       if (!licenseInfo.hasLicense) {
+        // 12
         licenseType = c_LR.ConnectionsLiveOS;
       }
+      // 连接实时查看限制已超出
       ctx.logger.error(logPrefix + 'Connection Live Viewer limit exceeded!!!');
     } else {
       if (licenseWarningLimitUsers) {
@@ -3492,7 +3502,7 @@ exports.install = function(server, callbackFunction) {
       if (licenseWarningLimitConnections) {
         ctx.logger.warn(logPrefix + 'Warning Connection limit exceeded!!!');
       }
-      if (licenseWarningLimitConnectionsLive) {
+      if (licenseWarningLimitConnectionsLive) { //到连接数警告线则警告
         ctx.logger.warn(logPrefix + 'Warning Connection Live Viewer limit exceeded!!!');
       }
     }

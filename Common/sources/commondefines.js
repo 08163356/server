@@ -1173,8 +1173,8 @@ const FileStatus = {
   NeedPassword: 9
 };
 
-const buildVersion = '4.1.2';
-const buildNumber = 37;
+const buildVersion = '8.0.1';
+const buildNumber = 0;
 
 exports.TaskQueueData = TaskQueueData;
 exports.CMailMergeSendData = CMailMergeSendData;
