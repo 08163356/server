@@ -46,7 +46,7 @@ if (cluster.isMaster) {
   const cfgLicenseFile = config.get('license.license_file');
   const cfgMaxProcessCount = config.get('FileConverter.converter.maxprocesscount');
 
-  var workersCount = 0;
+  var workersCount = 16;
   const readLicense = async function () {
     const numCPUs = os.cpus().length;
     const availableParallelism = os.availableParallelism?.();
