@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2023
+ * (c) Copyright Ascensio System SIA 2010-2024
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -53,8 +53,13 @@ const connectionConfiguration = {
 
 const additionalOptions = configSql.get('mysqlExtraOptions');
 const configuration = Object.assign({}, connectionConfiguration, additionalOptions);
+let queryTimeout = undefined;
+if (configuration.queryTimeout) {
+  queryTimeout = configuration.queryTimeout;
+  delete configuration.queryTimeout;
+}
 
-let pool = mysql.createPool(configuration);
+const pool = mysql.createPool(configuration);
 
 function sqlQuery(ctx, sqlCommand, callbackFunction, opt_noModifyRes = false, opt_noLog = false, opt_values = []) {
   return executeQuery(ctx, sqlCommand, opt_values, opt_noModifyRes, opt_noLog).then(
@@ -68,7 +73,7 @@ async function executeQuery(ctx, sqlCommand, values = [], noModifyRes = false, n
   try {
     connection = await pool.getConnection();
 
-    const result = await connection.query(sqlCommand, values);
+    const result = await connection.query({ sql: sqlCommand, timeout: queryTimeout, values });
 
     let output;
     if (!noModifyRes) {

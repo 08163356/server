@@ -1,3 +1,35 @@
+/*
+ * (c) Copyright Ascensio System SIA 2010-2024
+ *
+ * This program is a free software product. You can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License (AGPL)
+ * version 3 as published by the Free Software Foundation. In accordance with
+ * Section 7(a) of the GNU AGPL its Section 15 shall be amended to the effect
+ * that Ascensio System SIA expressly excludes the warranty of non-infringement
+ * of any third-party rights.
+ *
+ * This program is distributed WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
+ * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
+ *
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
+ * street, Riga, Latvia, EU, LV-1050.
+ *
+ * The  interactive user interfaces in modified source and object code versions
+ * of the Program must display Appropriate Legal Notices, as required under
+ * Section 5 of the GNU AGPL version 3.
+ *
+ * Pursuant to Section 7(b) of the License you must retain the original Product
+ * logo when distributing the program. Pursuant to Section 7(e) we decline to
+ * grant you any rights under trademark law for use of our trademarks.
+ *
+ * All the Product's GUI elements, including illustrations and icon sets, as
+ * well as technical writing content are licensed under the terms of the
+ * Creative Commons Attribution-ShareAlike 4.0 International. See the License
+ * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
+ *
+ */
+
 const { describe, test, expect, afterAll } = require('@jest/globals');
 const config = require('../../../Common/node_modules/config');
 
@@ -6,6 +38,7 @@ const operationContext = require('../../../Common/sources/operationContext');
 const taskResult = require('../../../DocService/sources/taskresult');
 const commonDefines = require('../../../Common/sources/commondefines');
 const constants = require('../../../Common/sources/constants');
+const utils = require("../../../Common/sources/utils");
 const configSql = config.get('services.CoAuthoring.sql');
 
 const ctx = new operationContext.Context();
@@ -68,6 +101,9 @@ const getExpiredCase = [
   'baseConnector-getExpired()-tester-0',
   'baseConnector-getExpired()-tester-1',
   'baseConnector-getExpired()-tester-2',
+];
+const getCountWithStatusCase = [
+  'baseConnector-getCountWithStatusCase()-tester-0'
 ];
 const upsertCases = {
   insert: 'baseConnector-upsert()-tester-row-inserted',
@@ -173,7 +209,7 @@ afterAll(async function () {
   const upsertIds = Object.values(upsertCases);
 
   const tableChangesIds = [...emptyCallbacksCase, ...documentsWithChangesCase, ...changesIds, ...insertIds];
-  const tableResultIds = [...emptyCallbacksCase, ...documentsWithChangesCase, ...getExpiredCase, ...upsertIds];
+  const tableResultIds = [...emptyCallbacksCase, ...documentsWithChangesCase, ...getExpiredCase, ...getCountWithStatusCase, ...upsertIds];
 
   const deletionPool = [
     deleteRowsByIds(cfgTableChanges, tableChangesIds),
@@ -218,30 +254,8 @@ describe('Base database connector', function () {
 
   describe('DB tables existence', function () {
     const tables = {
-      [cfgTableResult]: [
-        { column_name: 'tenant' },
-        { column_name: 'id' },
-        { column_name: 'status' },
-        { column_name: 'status_info' },
-        { column_name: 'created_at' },
-        { column_name: 'last_open_date' },
-        { column_name: 'user_index' },
-        { column_name: 'change_id' },
-        { column_name: 'callback' },
-        { column_name: 'baseurl' },
-        { column_name: 'password' },
-        { column_name: 'additional' }
-      ],
-      [cfgTableChanges]: [
-        { column_name: 'tenant' },
-        { column_name: 'id' },
-        { column_name: 'change_id' },
-        { column_name: 'user_id' },
-        { column_name: 'user_id_original' },
-        { column_name: 'user_name' },
-        { column_name: 'change_data' },
-        { column_name: 'change_date' }
-      ]
+      [cfgTableResult]: constants.TABLE_RESULT_SCHEMA.map(column => { return { column_name: column } }),
+      [cfgTableChanges]: constants.TABLE_CHANGES_SCHEMA.map(column => { return { column_name: column } })
     };
 
     for (const table in tables) {
@@ -252,6 +266,12 @@ describe('Base database connector', function () {
         }
       });
     }
+    
+    const table = "unused_table";
+    test(`${table} table absence`, async function () {
+      const result = await baseConnector.getTableColumns(ctx, table);
+      expect(result).toEqual([]);
+    });
   });
 
   describe('Changes manipulations', function () {
@@ -396,6 +416,21 @@ describe('Base database connector', function () {
       const resultAfterNewRows = await baseConnector.getExpired(ctx, maxCount + 3, 0);
 
       expect(resultAfterNewRows.length).toEqual(resultBeforeNewRows.length + getExpiredCase.length);
+    });
+
+    test('Get Count With Status', async function () {
+      let countWithStatus;
+      let unknownStatus = 99;//to avoid collision with running server
+      let EXEC_TIMEOUT = 30000 + utils.getConvertionTimeout(undefined);
+      countWithStatus = await baseConnector.getCountWithStatus(ctx, unknownStatus, EXEC_TIMEOUT);
+      expect(countWithStatus).toEqual(0);
+      for (const id of getCountWithStatusCase) {
+        const task = createTask(id);
+        task.status = unknownStatus;
+        await insertIntoResultTable(date, task);
+      }
+      countWithStatus = await baseConnector.getCountWithStatus(ctx, unknownStatus, EXEC_TIMEOUT);
+      expect(countWithStatus).toEqual(getCountWithStatusCase.length);
     });
   });
 

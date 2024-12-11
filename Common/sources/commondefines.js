@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2023
+ * (c) Copyright Ascensio System SIA 2010-2024
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -110,6 +110,7 @@ function InputCommand(data, copyExplicit) {
     this['attempt'] = data['attempt'];
     this['convertToOrigin'] = data['convertToOrigin'];
     this['isSaveAs'] = data['isSaveAs'];
+    this['saveAsPath'] = data['saveAsPath'];
     if (copyExplicit) {
       this['withAuthorization'] = data['withAuthorization'];
       this['externalChangeInfo'] = data['externalChangeInfo'];
@@ -174,6 +175,7 @@ function InputCommand(data, copyExplicit) {
     this['convertToOrigin'] = undefined;
     this['originformat'] = undefined;
     this['isSaveAs'] = undefined;
+    this['saveAsPath'] = undefined;
   }
 }
 InputCommand.prototype = {
@@ -516,6 +518,12 @@ InputCommand.prototype = {
   },
   setIsSaveAs: function(data) {
     this['isSaveAs'] = data;
+  },
+  getSaveAsPath: function() {
+    return this['saveAsPath'];
+  },
+  setSaveAsPath: function(data) {
+    this['saveAsPath'] = data;
   }
 };
 
@@ -1173,8 +1181,8 @@ const FileStatus = {
   NeedPassword: 9
 };
 
-const buildVersion = '8.0.1';
-const buildNumber = 0;
+const buildVersion = '4.1.2';
+const buildNumber = 37;
 
 exports.TaskQueueData = TaskQueueData;
 exports.CMailMergeSendData = CMailMergeSendData;

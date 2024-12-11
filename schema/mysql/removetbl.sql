@@ -1,4 +1,4 @@
-USE onlyoffice;
+-- USE onlyoffice;
 --
 -- Drop tables
 --

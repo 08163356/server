@@ -4,6 +4,7 @@ on:
     branches:
       - '**'
     paths:
+      - 'tests/integration/databaseTests/**'
       - 'DocService/sources/databaseConnectors/baseConnector.js'
       - 'DocService/sources/databaseConnectors/mysqlConnector.js'
 jobs:

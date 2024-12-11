@@ -4,6 +4,7 @@ on:
     branches:
       - '**'
     paths:
+      - 'tests/integration/databaseTests/**'
       - 'DocService/sources/databaseConnectors/baseConnector.js'
       - 'DocService/sources/databaseConnectors/mssqlConnector.js'
 jobs:
@@ -21,7 +22,7 @@ jobs:
       - name: Caching dependencies
         uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '16'
           cache: 'npm'
           cache-dependency-path: |
             ./npm-shrinkwrap.json
@@ -44,7 +45,8 @@ jobs:
       - name: Creating schema
         run: |
           docker cp ./schema/mssql/createdb.sql mssql:/
-          docker exec mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P onlYoff1ce -i /createdb.sql
+          docker exec mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P onlYoff1ce -Q "CREATE DATABASE onlyoffice;"
+          docker exec mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P onlYoff1ce -d onlyoffice -i /createdb.sql
 
       - name: Run Jest
         run: npm run "integration database tests"

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2023
+ * (c) Copyright Ascensio System SIA 2010-2024
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -58,6 +58,7 @@ const commonDefines = require('./../../Common/sources/commondefines');
 const operationContext = require('./../../Common/sources/operationContext');
 const tenantManager = require('./../../Common/sources/tenantManager');
 const staticRouter = require('./routes/static');
+const ms = require('ms');
 
 const cfgWopiEnable = config.get('wopi.enable');
 const cfgWopiDummyEnable = config.get('wopi.dummy.enable');
@@ -94,30 +95,24 @@ app.set("views", path.resolve(process.cwd(), cfgHtmlTemplate));
 app.set("view engine", "ejs");
 const server = http.createServer(app);
 
-let licenseInfo, licenseOriginal, updatePluginsTime, userPlugins, pluginsLoaded;
+let licenseInfo, licenseOriginal, updatePluginsTime, userPlugins;
+const updatePluginsCacheExpire = ms("5m");
 
 const updatePlugins = (eventType, filename) => {
-	operationContext.global.logger.info('update Folder: %s ; %s', eventType, filename);
-	if (updatePluginsTime && 1000 >= (new Date() - updatePluginsTime)) {
-		return;
-	}
 	operationContext.global.logger.info('update Folder true: %s ; %s', eventType, filename);
-	updatePluginsTime = new Date();
-	pluginsLoaded = false;
+	userPlugins = undefined;
 };
-const readLicense = function*() {
-	[licenseInfo, licenseOriginal] = yield* license.readLicense(cfgLicenseFile);
+const readLicense = async function () {
+	[licenseInfo, licenseOriginal] = await license.readLicense(cfgLicenseFile);
 };
-const updateLicense = () => {
-	return co(function*() {
-		try {
-			yield* readLicense();
-			docsCoServer.setLicenseInfo(licenseInfo, licenseOriginal);
-			operationContext.global.logger.info('End updateLicense');
-		} catch (err) {
-			operationContext.global.logger.error('updateLicense error: %s', err.stack);
-		}
-	});
+const updateLicense = async () => {
+	try {
+		await readLicense();
+		await docsCoServer.setLicenseInfo(operationContext.global, licenseInfo, licenseOriginal);
+		operationContext.global.logger.info('End updateLicense');
+	} catch (err) {
+		operationContext.global.logger.error('updateLicense error: %s', err.stack);
+	}
 };
 
 operationContext.global.logger.warn('Express server starting...');
@@ -133,9 +128,15 @@ fs.watchFile(cfgLicenseFile, updateLicense);
 setInterval(updateLicense, 86400000);
 
 try {
-	fs.watch(config.get('services.CoAuthoring.plugins.path'), updatePlugins);
+	let staticContent = config.get('services.CoAuthoring.server.static_content');
+	let pluginsUri = config.get('services.CoAuthoring.plugins.uri');
+	let pluginsPath = undefined;
+	if (staticContent[pluginsUri]) {
+		pluginsPath = staticContent[pluginsUri].path;
+	}
+	fs.watch(pluginsPath, updatePlugins);
 } catch (e) {
-	operationContext.global.logger.warn('Failed to subscribe to plugin folder updates. When changing the list of plugins, you must restart the server. https://nodejs.org/docs/latest/api/fs.html#fs_availability');
+	operationContext.global.logger.warn('Failed to subscribe to plugin folder updates. When changing the list of plugins, you must restart the server. https://nodejs.org/docs/latest/api/fs.html#fs_availability. %s', e.stack);
 }
 
 // If you want to use 'development' and 'production',
@@ -154,7 +155,7 @@ docsCoServer.install(server, () => {
 			try {
 				ctx.initFromRequest(req);
 				yield ctx.initTenantCache();
-				let licenseInfo = yield tenantManager.getTenantLicense(ctx);
+				let [licenseInfo] = yield tenantManager.getTenantLicense(ctx);
 				let buildVersion = commonDefines.buildVersion;
 				let buildNumber = commonDefines.buildNumber;
 				let buildDate, packageType, customerId = "", alias = "";
@@ -182,8 +183,8 @@ docsCoServer.install(server, () => {
 	let forms = multer();
 
 	app.get('/coauthoring/CommandService.ashx', utils.checkClientIp, rawFileParser, docsCoServer.commandFromServer);
-	app.post('/coauthoring/CommandService.ashx', utils.checkClientIp, rawFileParser,
-		docsCoServer.commandFromServer);
+	app.post('/coauthoring/CommandService.ashx', utils.checkClientIp, rawFileParser, docsCoServer.commandFromServer);
+	app.post('/command', utils.checkClientIp, rawFileParser, docsCoServer.commandFromServer);
 
 	app.get('/ConvertService.ashx', utils.checkClientIp, rawFileParser, converterService.convertXml);
 	app.post('/ConvertService.ashx', utils.checkClientIp, rawFileParser, converterService.convertXml);
@@ -241,6 +242,7 @@ docsCoServer.install(server, () => {
 	app.get('/info/info.json', utils.checkClientIp, docsCoServer.licenseInfo);
 	app.put('/internal/cluster/inactive', utils.checkClientIp, docsCoServer.shutdown);
 	app.delete('/internal/cluster/inactive', utils.checkClientIp, docsCoServer.shutdown);
+	app.get('/internal/connections/edit', docsCoServer.getEditorConnectionsCount);
 
 	function checkWopiEnable(req, res, next) {
 		//todo may be move code into wopiClient or wopiClient.discovery...
@@ -281,8 +283,8 @@ docsCoServer.install(server, () => {
 	let fileForms = multer({limits: {fieldSize: cfgDownloadMaxBytes}});
 	app.get('/hosting/discovery', checkWopiEnable, utils.checkClientIp, wopiClient.discovery);
 	app.get('/hosting/capabilities', checkWopiEnable, utils.checkClientIp, wopiClient.collaboraCapabilities);
-	app.post('/lool/convert-to/:format?', checkWopiEnable, utils.checkClientIp, urleEcodedParser, fileForms.single('data'), converterService.convertTo);
-	app.post('/cool/convert-to/:format?', checkWopiEnable, utils.checkClientIp, urleEcodedParser, fileForms.single('data'), converterService.convertTo);
+	app.post('/lool/convert-to/:format?', checkWopiEnable, utils.checkClientIp, urleEcodedParser, fileForms.any(), converterService.convertTo);
+	app.post('/cool/convert-to/:format?', checkWopiEnable, utils.checkClientIp, urleEcodedParser, fileForms.any(), converterService.convertTo);
 	app.post('/hosting/wopi/:documentType/:mode', checkWopiEnable, urleEcodedParser, forms.none(), utils.lowercaseQueryString, wopiClient.getEditorHtml);
 	app.post('/hosting/wopi/convert-and-edit/:ext/:targetext', checkWopiEnable, urleEcodedParser, forms.none(), utils.lowercaseQueryString, wopiClient.getConverterHtml);
 	app.get('/hosting/wopi/convert-and-edit-handler', checkWopiEnable, utils.lowercaseQueryString, converterService.getConverterHtmlHandler);
@@ -300,12 +302,12 @@ docsCoServer.install(server, () => {
 	});
 
 	const sendUserPlugins = (res, data) => {
-		pluginsLoaded = true;
 		res.setHeader('Content-Type', 'application/json');
 		res.send(JSON.stringify(data));
 	};
 	app.get('/plugins.json', (req, res) => {
-		if (userPlugins && pluginsLoaded) {
+		//fs.watch is not reliable. Set cache expiry time
+		if (userPlugins && (new Date() - updatePluginsTime) < updatePluginsCacheExpire) {
 			sendUserPlugins(res, userPlugins);
 			return;
 		}
@@ -342,6 +344,7 @@ docsCoServer.install(server, () => {
 					}
 				}
 
+				updatePluginsTime = new Date();
 				userPlugins = {'url': '', 'pluginsData': result, 'autostart': pluginsAutostart};
 				sendUserPlugins(res, userPlugins);
 			});
