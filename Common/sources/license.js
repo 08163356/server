@@ -42,7 +42,7 @@ exports.readLicense = async function () {
 	var now = new Date();
 	var startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));//first day of current month
 	return [{
-		count: 1,
+		count: 16,
 		type: c_LR.Success,
 		packageType: constants.PACKAGE_TYPE_OS,
 		mode: constants.LICENSE_MODE.None,
